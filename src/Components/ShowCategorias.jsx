@@ -1,10 +1,144 @@
 import React, { useEffect, useState} from 'react'
 import axios from 'axios'
-import { alertaSuccess, alertaError, alertaWarning } from '../funciones'
+import { alertaSuccess, alertaError, alertaWarning } from '../funciones.js'
 import Swal from "sweetalert2"
 import withReactContent from 'sweetalert2-react-content' 
 
+const Categorias = () => {
+    const [categories, setCategories] = useState([])
+    const [id, setId] = useState('')
+    const [name, setName] = useState('')
+    const [image, setImage] = useState('')
+    const [titleModal, setTitleModal] = useState('')
+    const [operation, setOperation] = useState(1)
 
+    const url = 'https://api.escuelajs.co/api/v1/categories'
+
+    /**
+     * Obtiene listado de productos desde la API
+     */
+    const getCategories = async () => {
+        const response = await axios.get(url);
+        setCategories(response.data)
+    }
+
+    useEffect(() => { 
+        getCategories()
+    })
+
+    /**
+     * Abre el modal con los atributos de la categoria, si se va a editar, se cargan los datos
+     * @param {Number} operation - 1. Agregar, 2. Editar 
+     * @param {Number} id - Identificador de la categoria
+     * @param {String} name - nombre de la categoria
+     *  @param {img} imagen - foto de la categoria
+     */
+    const openModal = (operation, id, name, image) => {
+        setId('')
+        setName('')
+        setImage('')
+
+        if (operation === 1) {
+            setTitleModal('Registrar Categoria')
+            setOperation(1)
+        } else if(operation === 2) {
+            setTitleModal('Editar Editar')
+            setOperation(2)
+            setId(id)
+            setName(name)
+            setImage(image)
+        }
+    }
+    /**
+     * Permite el uso de la API dependiendo el tipo de operación
+     * 
+     * @param {string} url - URL de la API a consumir
+     * @param {string} metodo - Tipo de método a utilizar: POST, PUT, PATCH o DELETE
+     * @param {JSON} parametros - Objeto JSON que se enviará a la API
+     */
+    const enviarSolicitud = async (url, metodo, parametros = {}) => {
+        let obj = {
+            method: metodo,
+            url: url,
+            data: parametros,
+            headers: {
+                "Content-Type":"application/json",
+                "Accept":"application/json"
+            }
+        }
+
+        await axios(obj).then(() => {
+            let mensaje
+
+            if (metodo === "POST") {
+                mensaje = 'Se guardó la categoría'
+            } else if (metodo === "PUT") {
+                mensaje = 'Se editó la categoría'
+            } else if (metodo === "DELETE") {
+                mensaje = 'Se eliminó la categoría'
+            }
+            alertaSuccess(mensaje)
+            document.getElementById('btnCerrarModal').click()
+            getCategories()
+        }).catch((error) => {
+            alertaError(error.response.data.message)
+        })
+    }
+
+    /**
+     * Valida que cada uno de los campos del formulario no vayan vacíos
+     */
+    const validar = () => {
+        let payload
+        let metodo
+        let urlAxios
+
+        if (name === '') {
+            alertaWarning('Nombre de la categoria en blanco', 'Nombre')
+        } else {
+            payload = {
+                name: name,
+                image:'https://c8.alamy.com/compes/r3yw81/el-icono-de-imagen-no-disponible-vector-plana-r3yw81.jpg'
+            }
+
+            if (operation === 1) {
+                metodo = 'POST'
+                urlAxios = 'https://api.escuelajs.co/api/v1/categories/'
+            } else {
+                metodo = 'PUT'
+                urlAxios = `https://api.escuelajs.co/api/v1/categories/${id}`
+            }
+
+            enviarSolicitud(urlAxios, metodo, payload)
+        }
+    }
+
+    /**
+     * Proceso para eliminar una categoria
+     * 
+     * @param {Number} id - Identificador de la categoria a eliminar 
+     */
+    const deleteCategories = (id) => {
+        let urlDelete = `https://api.escuelajs.co/api/v1/categories/${id}`
+
+        const MySwal = withReactContent(Swal)
+
+        MySwal.fire({
+            title: '¿Está seguro de eliminar la categoria?',
+            icon: 'question',
+            text: 'No habrá marcha atrás',
+            showCancelButton: true,
+            confirmButtonText: 'Si, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                setId(id)
+                enviarSolicitud(urlDelete, 'DELETE')
+            }
+        }).catch((error) => {
+            alertaError(error)
+        })
+    }
 
     return(
         <div className="App">
@@ -43,7 +177,7 @@ import withReactContent from 'sweetalert2-react-content'
                                                 <button onClick={() => openModal(2, categories.id, categories.name) } className='btn btn-warning' data-bs-toggle='modal' data-bs-target='#modalCategories' >
                                                     <i className='fa-solid fa-edit' />
                                                 </button>
-                                                <button onClick={() => deleteUsers(categories.id)} className='btn btn-danger' >
+                                                <button onClick={() => deleteCategories(categories.id)} className='btn btn-danger' >
                                                     <i className='fa-solid fa-trash' />
                                                 </button>
                                             </td>
@@ -66,12 +200,12 @@ import withReactContent from 'sweetalert2-react-content'
                         <div className='modal-body'>
                             <input type='hidden' id='id' />
                             <div className='input-group mb-3'>
-                                <span className='input-group-text'><i className='fa-solid fa-dollar-sign' /></span>
+                                <span className='input-group-text'><i className='fa-solid fa-user' /></span>
                                 <input type='text' id='Nombre' className='form-control' placeholder='Nombre' value={name} onChange={(e) => setName(e.target.value)} />
                             </div>
                             <div className='input-group mb-3'>
-                                <span className='input-group-text'><i className='fa-solid fa-dollar-sign' /></span>
-                                <input type='text' id='Foto' className='form-control' placeholder='Foto' value={image} onChange={(e) => setImage(e.target.value)} />
+                                <span className='input-group-text'><i className='fa-solid fa-image' /></span>
+                                <input type='text' id='Foto' className='form-control' placeholder='url' value={image} onChange={(e) => setImage(e.target.value)} />
                             </div>
                         </div>
                         <div className='modal-footer'>
@@ -85,6 +219,6 @@ import withReactContent from 'sweetalert2-react-content'
             </div>
         </div>
     );
-
+}
 
 export default Categorias;
